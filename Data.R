@@ -59,7 +59,7 @@ data$observedoutcome <- ifelse (data$treatment ==2, data$y1,
                         ifelse(data$treatment ==1, data$y0,
                                NA))
 
-sumtable(data, group="treatment", group.test = TRUE) #Means almost  identical for both treatment and control 
+sumtable(data, group="treatment", group.test = TRUE) #Means similar for both treatment and control 
 
 #Simple regression of outcome on treatment
 lm <- lm(observedoutcome ~ treatment, data=data)
