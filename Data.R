@@ -1,4 +1,4 @@
-
+library(shiny)
 library(haven)
 library(randomizeR)
 library(blockTools)
@@ -80,7 +80,7 @@ print(alphaestimate)
 betaestimate <- mean[2,]-mean[1,]
 print(betaestimate)
 
-######################### Question E, estimate the ATE using LM 
+######################### Question F, estimate the ATE using LM 
 
 
 #Simple regression of outcome on treatment
@@ -90,8 +90,6 @@ summary(lm)
 #Inclusion of birthday and stratum control variables
 lm <- lm(observedoutcome ~ treatment + stratum + birthday, data=data)
 summary(lm)
-
-
 
 
 
