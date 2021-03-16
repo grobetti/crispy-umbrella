@@ -1,3 +1,4 @@
+
 library(haven)
 library(randomizeR)
 library(blockTools)
@@ -9,12 +10,15 @@ library(blockrand)
 library(tibble)
 library(ATE)
 library(vtable)
+library(tinytex)
 
-set.seed(42)
+set.seed(43)
 
 data <- read_dta("randomization_2021.dta")
 
 data <- na.omit(data) 
+
+########################### Question C, implement randomization
 
 #Difference in potential outcomes as per blacks and years 
 aggregate(data$y0,by=list(data$year), FUN=mean)
@@ -26,7 +30,7 @@ aggregate(data$y1,by=list(data$black), FUN=mean)
 #Creating stratum
 data$stratum <- NA
 data$stratum <- ifelse (data$black==1 & data$year==2005, 1,
-                        ifelse(data$black==0 & data$year ==2005, 2,
+                          ifelse(data$black==0 & data$year ==2005, 2,
                                ifelse(data$black==1 & data$year == 2006, 3,
                                       ifelse(data$black==0 & data$year == 2006, 4, NA)))) 
 
@@ -51,6 +55,12 @@ data$treatment[data$stratum ==2] <- stratum2$treatment[match(stratum2$id, data$i
 data$treatment[data$stratum ==3] <- stratum3$treatment[match(stratum3$id, data$id[data$stratum==3])]
 data$treatment[data$stratum ==4] <- stratum4$treatment[match(stratum4$id, data$id[data$stratum==4])]
 
+data$treatment <- as.factor(data$treatment)
+
+sumtable(data, group="treatment", group.test = TRUE) #Checking whether randomization worked  
+
+########################### Question E, estimate the ATE
+
 #Recording observed outcome based on treatment assignment
 
 data$observedoutcome <- NA
@@ -59,27 +69,27 @@ data$observedoutcome <- ifelse (data$treatment ==2, data$y1,
                         ifelse(data$treatment ==1, data$y0,
                                NA))
 
-sumtable(data, group="treatment", group.test = TRUE) #Means similar for both treatment and control 
+#Estimating ATE
+
+mean <- tapply(data$observedoutcome , data$treatment, mean)
+mean <- as.data.frame(mean)
+
+alphaestimate <- mean[1,]
+print(alphaestimate)
+
+betaestimate <- mean[2,]-mean[1,]
+print(betaestimate)
+
+######################### Question E, estimate the ATE using LM 
+
 
 #Simple regression of outcome on treatment
 lm <- lm(observedoutcome ~ treatment, data=data)
 summary(lm)
 
-#Estimating ATE
-
-averages <- tapply(data$observedoutcome , data$treatment, mean)
-average <- as.data.frame(averages)
-
-alphaestimate <- average[1,]
-print(alphaestimate)
-
-betaestimate <- average[2,]-average[1,]
-print(betaestimate)
-
 #Inclusion of birthday and stratum control variables
 lm <- lm(observedoutcome ~ treatment + stratum + birthday, data=data)
 summary(lm)
-
 
 
 
