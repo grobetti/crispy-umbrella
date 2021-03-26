@@ -1,4 +1,9 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
 library(shiny)
+library(xfun)
 library(haven)
 library(randomizeR)
 library(blockTools)
@@ -11,89 +16,75 @@ library(tibble)
 library(ATE)
 library(vtable)
 library(tinytex)
+library(plm)
+library(lmtest)
 
-set.seed(43)
+```
 
-data <- read_dta("randomization_2021.dta")
+Problem Set 3 Analysis of Experimental Data: Project STAR
 
-data <- na.omit(data) 
-
-########################### Question C, implement randomization
-
-#Difference in potential outcomes as per blacks and years 
-aggregate(data$y0,by=list(data$year), FUN=mean)
-aggregate(data$y1,by=list(data$year), FUN=mean)
-
-aggregate(data$y0,by=list(data$black), FUN=mean)
-aggregate(data$y1,by=list(data$black), FUN=mean)
-
-#Creating stratum
-data$stratum <- NA
-data$stratum <- ifelse (data$black==1 & data$year==2005, 1,
-                          ifelse(data$black==0 & data$year ==2005, 2,
-                               ifelse(data$black==1 & data$year == 2006, 3,
-                                      ifelse(data$black==0 & data$year == 2006, 4, NA)))) 
-
-#Random treatment assignment - Blocked and stratified 
-
-stratum1 <- blockrand(n=28, block.sizes=1, stratum='1')
-stratum2 <- blockrand(n=24, block.sizes=1, stratum='2')
-stratum3 <- blockrand(n=33, block.sizes=1, stratum='3')
-stratum4 <- blockrand(n=10, block.sizes=1, stratum='4')
-
-data$id <- NA
-
-data$id[data$stratum == 1] <- seq(1:sum(data$stratum == 1))
-data$id[data$stratum == 2] <- seq(1:sum(data$stratum == 2))
-data$id[data$stratum == 3] <- seq(1:sum(data$stratum == 3))
-data$id[data$stratum == 4] <- seq(1:sum(data$stratum == 4))
-
-data$treatment <- NA
-
-data$treatment[data$stratum ==1] <- stratum1$treatment[match(stratum1$id, data$id[data$stratum==1])]
-data$treatment[data$stratum ==2] <- stratum2$treatment[match(stratum2$id, data$id[data$stratum==2])]
-data$treatment[data$stratum ==3] <- stratum3$treatment[match(stratum3$id, data$id[data$stratum==3])]
-data$treatment[data$stratum ==4] <- stratum4$treatment[match(stratum4$id, data$id[data$stratum==4])]
-
-data$treatment <- as.factor(data$treatment)
-
-sumtable(data, group="treatment", group.test = TRUE) #Checking whether randomization worked  
-
-########################### Question E, estimate the ATE
-
-#Recording observed outcome based on treatment assignment
-
-data$observedoutcome <- NA
-
-data$observedoutcome <- ifelse (data$treatment ==2, data$y1,
-                        ifelse(data$treatment ==1, data$y0,
-                               NA))
-
-#Estimating ATE
-
-mean <- tapply(data$observedoutcome , data$treatment, mean)
-mean <- as.data.frame(mean)
-
-alphaestimate <- mean[1,]
-print(alphaestimate)
-
-betaestimate <- mean[2,]-mean[1,]
-print(betaestimate)
-
-######################### Question F, estimate the ATE using LM 
+1) Summary statistics
+```{r}
+data <- read_dta("STAR.dta")
+data$girl <- as.factor(data$girl)
+data$freelunk <- as.factor(data$freelunk)
+data$sck <- as.factor(data$sck)
+summary(data)
+aggregate(tscorek ~ sck, mean, data=data)
+max(data$totexpk_m)
+```
+There are 2795 girls and 2954 boys in the dataset.
+The mean outcome for all students (testscore) is 461.2 and the median is 457.5.
+The mean for the treated is 466 and for the control 459.1.
+The most experienced teacher has 324 months of experience, thats equal to 27 years of teaching.
 
 
-#Simple regression of outcome on treatment
-lm <- lm(observedoutcome ~ treatment, data=data)
+2) OLS Regression
+```{r}
+
+lm <- lm(data$tscorek ~ data$sck, data = data)
 summary(lm)
 
-#Inclusion of birthday and stratum control variables
-lm <- lm(observedoutcome ~ treatment + stratum + birthday, data=data)
-summary(lm)
+plm <- plm(data$tscorek ~ data$sck, model = "within", index = c("schidkn"), data = data)
+summary(plm)
+
+```
+
+3) Standard Errors
+```{r}
+
+coeftest(plm, vcov. = vcovHC, type = "HC3")
+
+```
+
+4) Testing whether randomization worked (using Ws)
+```{r}
+
+data$sck <- as.numeric(data$sck)
+
+lmgirl <- lm(data$sck ~ data$girl, data = data)
+summary(lmgirl)
+
+lmfreelunk <- lm(data$sck ~ data$freelunk, data = data)
+summary(lmfreelunk)
+
+lmtotexp <- lm(data$sck ~ data$totexpk_m, data = data)
+summary(lmtotexp)
+
+totallm <- lm(data$sck ~ data$girl + data$freelunk + data$totexpk_m, data = data)
+anova(totallm)
+
+lmfrom2a <- lm(data$tscorek ~ data$sck + data$girl + data$freelunk + data$totexpk_m, data = data)
+summary(lmfrom2a)
+
+```
+
+5) Heterogeneity in Treatment Effects
+```{r}
 
 
 
-
+```
 
 
 
